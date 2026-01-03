@@ -1,0 +1,841 @@
+{
+  "info": {
+    "name": "AI-Powered EDA Platform API",
+    "description": "Complete Postman collection for testing the AI-Powered Exploratory Data Analysis Platform API. This collection includes all endpoints for file upload, analysis triggering, job management, and health monitoring.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "api_prefix",
+      "value": "/api/v1",
+      "type": "string"
+    },
+    {
+      "key": "file_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "job_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health & Status",
+      "item": [
+        {
+          "name": "Root - API Info",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/",
+              "host": ["{{base_url}}"],
+              "path": [""]
+            },
+            "description": "Get basic API information including version, environment, and available endpoints."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has API info\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('name');",
+                  "    pm.expect(jsonData).to.have.property('version');",
+                  "    pm.expect(jsonData).to.have.property('docs_url');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            },
+            "description": "Comprehensive health check for the API and its dependencies (Redis, file system)."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Health status is present\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('status');",
+                  "    pm.expect(jsonData).to.have.property('version');",
+                  "    pm.expect(jsonData).to.have.property('services');",
+                  "});",
+                  "",
+                  "pm.test(\"Services are checked\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.services).to.have.property('redis');",
+                  "    pm.expect(jsonData.services).to.have.property('file_system');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Metrics (Optional)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/metrics",
+              "host": ["{{base_url}}"],
+              "path": ["metrics"]
+            },
+            "description": "Get application metrics (if enabled in configuration)."
+          },
+          "response": []
+        }
+      ],
+      "description": "Endpoints for checking API health and status."
+    },
+    {
+      "name": "File Upload",
+      "item": [
+        {
+          "name": "Upload CSV File (Required Fields Only)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "CSV file to upload (REQUIRED)"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/upload/",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["upload", ""]
+            },
+            "description": "Upload a CSV file for analysis. Only the file is required.\n\n**Required:**\n- file: CSV file (max 100MB by default)\n\n**Returns:**\n- file_id: Use this for triggering analysis\n- filename: Original filename\n- size_bytes: File size\n- upload_timestamp: Upload time"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Response contains file_id\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('file_id');",
+                  "    pm.expect(jsonData).to.have.property('success');",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "    ",
+                  "    // Save file_id for subsequent requests",
+                  "    pm.collectionVariables.set('file_id', jsonData.file_id);",
+                  "    console.log('Saved file_id:', jsonData.file_id);",
+                  "});",
+                  "",
+                  "pm.test(\"File metadata is present\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('filename');",
+                  "    pm.expect(jsonData).to.have.property('size_bytes');",
+                  "    pm.expect(jsonData).to.have.property('upload_timestamp');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Upload CSV File (With Optional Description)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "CSV file to upload (REQUIRED)"
+                },
+                {
+                  "key": "description",
+                  "value": "Sales data for Q4 2025 analysis",
+                  "type": "text",
+                  "description": "Optional description of the file"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/upload/",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["upload", ""]
+            },
+            "description": "Upload a CSV file with an optional description.\n\n**Required:**\n- file: CSV file\n\n**Optional:**\n- description: Text description of the file content"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"File uploaded successfully\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "    pm.collectionVariables.set('file_id', jsonData.file_id);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get File Metadata",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/upload/{{file_id}}",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["upload", "{{file_id}}"]
+            },
+            "description": "Retrieve metadata for an uploaded file using its file_id."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"File metadata retrieved\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('success');",
+                  "    pm.expect(jsonData).to.have.property('file_metadata');",
+                  "    pm.expect(jsonData.file_metadata).to.have.property('file_id');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Uploaded File",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/upload/{{file_id}}",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["upload", "{{file_id}}"]
+            },
+            "description": "Delete an uploaded file and its metadata."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"File deleted successfully\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ],
+      "description": "Endpoints for uploading, managing, and deleting CSV files."
+    },
+    {
+      "name": "Analysis",
+      "item": [
+        {
+          "name": "Trigger Analysis (Minimal - All Defaults)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"file_id\": \"{{file_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/analyze/",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["analyze", ""]
+            },
+            "description": "Trigger analysis with minimal configuration. Uses all default settings:\n\n**Required:**\n- file_id: ID from file upload\n\n**Defaults Applied:**\n- analysis_types: [\"all\"] (runs all analysis types)\n- generate_insights: true (AI insights enabled)\n- generate_visualizations: true (charts enabled)\n\n**Returns:**\n- job_id: Use this to check status and get results\n- status: Initial job status (pending)"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 202 Accepted\", function () {",
+                  "    pm.response.to.have.status(202);",
+                  "});",
+                  "",
+                  "pm.test(\"Job created successfully\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('job_id');",
+                  "    pm.expect(jsonData).to.have.property('success');",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "    ",
+                  "    // Save job_id for subsequent requests",
+                  "    pm.collectionVariables.set('job_id', jsonData.job_id);",
+                  "    console.log('Saved job_id:', jsonData.job_id);",
+                  "});",
+                  "",
+                  "pm.test(\"Job status is pending\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('status');",
+                  "    pm.expect(jsonData.status).to.equal('pending');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Trigger Analysis (Full Options)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"file_id\": \"{{file_id}}\",\n  \"analysis_types\": [\n    \"descriptive\",\n    \"correlation\",\n    \"distribution\",\n    \"outlier\"\n  ],\n  \"generate_insights\": true,\n  \"generate_visualizations\": true,\n  \"custom_config\": {\n    \"outlier_method\": \"iqr\",\n    \"correlation_threshold\": 0.7\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/analyze/",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["analyze", ""]
+            },
+            "description": "Trigger analysis with full control over options.\n\n**Required:**\n- file_id: ID from file upload\n\n**Optional:**\n- analysis_types: Array of analysis types to run\n  - Options: \"descriptive\", \"correlation\", \"distribution\", \"outlier\", \"trend\", \"all\"\n  - Default: [\"all\"]\n  \n- generate_insights: Boolean (default: true)\n  - Generate AI-powered insights using LLM\n  \n- generate_visualizations: Boolean (default: true)\n  - Create charts and graphs\n  \n- custom_config: Object (optional)\n  - outlier_method: \"iqr\", \"zscore\", or \"isolation_forest\"\n  - correlation_threshold: Float 0.0-1.0\n  - Any other configuration overrides"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 202\", function () {",
+                  "    pm.response.to.have.status(202);",
+                  "});",
+                  "",
+                  "pm.test(\"Job created\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('job_id', jsonData.job_id);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Trigger Analysis (Without AI Insights)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"file_id\": \"{{file_id}}\",\n  \"analysis_types\": [\"all\"],\n  \"generate_insights\": false,\n  \"generate_visualizations\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/analyze/",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["analyze", ""]
+            },
+            "description": "Run analysis without AI insights (faster, no LLM API calls).\n\nUseful when:\n- You don't have LLM API keys configured\n- You want faster results\n- You only need statistical analysis and charts"
+          },
+          "response": []
+        },
+        {
+          "name": "Trigger Analysis (Statistics Only)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"file_id\": \"{{file_id}}\",\n  \"analysis_types\": [\"descriptive\", \"correlation\"],\n  \"generate_insights\": false,\n  \"generate_visualizations\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/analyze/",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["analyze", ""]
+            },
+            "description": "Run only statistical analysis (fastest option).\n\nNo visualizations or AI insights - pure statistics only."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Job Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/analyze/status/{{job_id}}",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["analyze", "status", "{{job_id}}"]
+            },
+            "description": "Check the status of an analysis job.\n\n**Possible Statuses:**\n- pending: Job queued but not started\n- processing: Analysis in progress\n- completed: Analysis finished successfully\n- failed: Analysis encountered an error\n- cancelled: Job was cancelled\n\n**Response includes:**\n- status: Current job status\n- progress: Percentage complete (0-100)\n- created_at: Job creation timestamp\n- started_at: When processing began (if started)\n- completed_at: When job finished (if completed)\n- error_message: Error details (if failed)\n- result_available: Whether results can be retrieved"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Job status retrieved\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('job_id');",
+                  "    pm.expect(jsonData).to.have.property('status');",
+                  "    pm.expect(jsonData).to.have.property('progress');",
+                  "    ",
+                  "    console.log('Job Status:', jsonData.status);",
+                  "    console.log('Progress:', jsonData.progress + '%');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Analysis Results",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/analyze/result/{{job_id}}",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["analyze", "result", "{{job_id}}"]
+            },
+            "description": "Retrieve complete analysis results for a completed job.\n\n**Requirements:**\n- Job must have status \"completed\"\n- Results are available for 7 days (configurable)\n\n**Response includes:**\n- dataset_schema: Row/column counts, data types, missing values\n- column_statistics: Detailed stats for each column\n  - Numeric: mean, median, std, quartiles, outliers\n  - Categorical: unique counts, frequency distribution\n- correlation_analysis: Correlation matrix and strong correlations\n- outlier_analysis: Outliers detected per column\n- distribution_analysis: Normality tests, distribution types\n- visualizations: Array of generated chart files\n- ai_insights: AI-generated insights (if enabled)\n  - Executive summary\n  - Key findings\n  - Data quality assessment\n  - Recommendations\n- analysis_duration_seconds: Time taken\n- completed_at: Completion timestamp"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Results retrieved successfully\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('success');",
+                  "    pm.expect(jsonData).to.have.property('result');",
+                  "    pm.expect(jsonData.result).to.have.property('dataset_schema');",
+                  "    pm.expect(jsonData.result).to.have.property('column_statistics');",
+                  "});",
+                  "",
+                  "pm.test(\"Analysis metadata present\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.result).to.have.property('analysis_duration_seconds');",
+                  "    pm.expect(jsonData.result).to.have.property('completed_at');",
+                  "    ",
+                  "    console.log('Analysis Duration:', jsonData.result.analysis_duration_seconds + 's');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Analysis Job",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/analyze/{{job_id}}",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["analyze", "{{job_id}}"]
+            },
+            "description": "Cancel a running job or delete a completed job and its results.\n\n**Actions:**\n- Deletes job metadata from Redis\n- Deletes analysis results\n- Does NOT delete the uploaded file (use delete file endpoint)"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Job deleted successfully\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ],
+      "description": "Endpoints for triggering analysis, checking job status, and retrieving results."
+    },
+    {
+      "name": "Complete Workflow Examples",
+      "item": [
+        {
+          "name": "1. Complete Workflow - Basic",
+          "item": [
+            {
+              "name": "Step 1: Upload File",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": []
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{base_url}}{{api_prefix}}/upload/",
+                  "host": ["{{base_url}}{{api_prefix}}"],
+                  "path": ["upload", ""]
+                }
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"File uploaded\", function () {",
+                      "    pm.response.to.have.status(201);",
+                      "    var jsonData = pm.response.json();",
+                      "    pm.collectionVariables.set('file_id', jsonData.file_id);",
+                      "});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Step 2: Trigger Analysis",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"file_id\": \"{{file_id}}\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}{{api_prefix}}/analyze/",
+                  "host": ["{{base_url}}{{api_prefix}}"],
+                  "path": ["analyze", ""]
+                }
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Analysis triggered\", function () {",
+                      "    pm.response.to.have.status(202);",
+                      "    var jsonData = pm.response.json();",
+                      "    pm.collectionVariables.set('job_id', jsonData.job_id);",
+                      "});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Step 3: Check Status (Wait until completed)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}{{api_prefix}}/analyze/status/{{job_id}}",
+                  "host": ["{{base_url}}{{api_prefix}}"],
+                  "path": ["analyze", "status", "{{job_id}}"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Step 4: Get Results",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}{{api_prefix}}/analyze/result/{{job_id}}",
+                  "host": ["{{base_url}}{{api_prefix}}"],
+                  "path": ["analyze", "result", "{{job_id}}"]
+                }
+              },
+              "response": []
+            }
+          ],
+          "description": "Complete end-to-end workflow: Upload → Analyze → Check Status → Get Results"
+        }
+      ],
+      "description": "Complete workflow examples showing the full process from upload to results."
+    },
+    {
+      "name": "Error Scenarios",
+      "item": [
+        {
+          "name": "Upload Invalid File Type",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "Try uploading a .txt or .xlsx file (not CSV)"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/upload/",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["upload", ""]
+            },
+            "description": "Test error handling for invalid file types.\n\nExpected: 400 Bad Request with error message."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 400\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test(\"Error message present\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('error');",
+                  "    pm.expect(jsonData.error).to.have.property('message');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Analyze Non-existent File",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"file_id\": \"non-existent-file-id-12345\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/analyze/",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["analyze", ""]
+            },
+            "description": "Test error handling for non-existent file_id.\n\nExpected: 404 Not Found"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 404\", function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Results for Incomplete Job",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/analyze/result/{{job_id}}",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["analyze", "result", "{{job_id}}"]
+            },
+            "description": "Test getting results before job completes.\n\nExpected: 400 Bad Request with message about job not completed."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// This will fail if job is not completed",
+                  "pm.test(\"Status code is 400 or 200\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 400]);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invalid Analysis Type",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"file_id\": \"{{file_id}}\",\n  \"analysis_types\": [\"invalid_type\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/analyze/",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["analyze", ""]
+            },
+            "description": "Test validation error for invalid analysis type.\n\nExpected: 422 Unprocessable Entity"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 422\", function () {",
+                  "    pm.response.to.have.status(422);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ],
+      "description": "Test error handling and validation scenarios."
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [""]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [""]
+      }
+    }
+  ]
+}

@@ -1,0 +1,120 @@
+version: '3.8'
+
+services:
+  # Redis for caching and Celery broker
+  redis:
+    image: redis:7-alpine
+    container_name: eda-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks:
+      - eda-network
+
+  # Main FastAPI Application
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: eda-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./src:/app/src
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./reports:/app/reports
+    env_file:
+      - .env
+    depends_on:
+      - redis
+    command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - eda-network
+
+  # Celery Worker for background tasks
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: eda-celery-worker
+    volumes:
+      - ./src:/app/src
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./reports:/app/reports
+    env_file:
+      - .env
+    depends_on:
+      - redis
+    command: celery -A src.core.celery_app worker --loglevel=info --concurrency=4
+    networks:
+      - eda-network
+
+  # Celery Beat for scheduled tasks
+  celery-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: eda-celery-beat
+    volumes:
+      - ./src:/app/src
+      - ./data:/app/data
+    env_file:
+      - .env
+    depends_on:
+      - redis
+    command: celery -A src.core.celery_app beat --loglevel=info
+    networks:
+      - eda-network
+
+  # Flower for Celery monitoring
+  flower:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: eda-flower
+    ports:
+      - "5555:5555"
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - celery-worker
+    command: celery -A src.core.celery_app flower --port=5555
+    networks:
+      - eda-network
+
+  # Nginx as reverse proxy and load balancer
+  nginx:
+    image: nginx:alpine
+    container_name: eda-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - api
+    networks:
+      - eda-network
+
+volumes:
+  redis_data:
+
+networks:
+  eda-network:
+    driver: bridge
